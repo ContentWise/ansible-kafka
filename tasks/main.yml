@@ -1,0 +1,62 @@
+---
+- name: make sure user for kafka exists
+  user:
+    name: "{{ kafka_user }}"
+
+- name: download kafka
+  unarchive:
+    remote_src: yes
+    src: "{{ kafka_url }}"
+    dest: "{{ kafka_install_dir | dirname }}"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    creates: "{{ kafka_install_dir }}/bin/kafka-server-start.sh"
+
+- name: makesure kafka directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+  with_items:
+    - "{{ kafka_conf_dir }}"
+    - "{{ kafka_log_dirs }}"
+
+- name: ensure server.properties is present
+  template:
+    src: server.properties.j2
+    dest: "{{ kafka_conf_dir }}/server.properties"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+
+- name: systemd start script
+  template:
+    src: kafka.service.j2
+    dest: /etc/systemd/system/kafka.service
+
+- name: make sure kafka is started
+  service:
+    name: kafka
+    state: started
+    enabled: yes
+
+- name: wait for kafka to startup
+  wait_for:
+    host: "{{ kafka_bind_host }}"
+    port: "{{ kafka_port }}"
+
+- name: read topics
+  command: "./bin/kafka-topics.sh --zookeeper {{ kafka_zookeeper_connect[0] }} --list"
+  args:
+    chdir: "{{ kafka_install_dir }}"
+  run_once: yes
+  changed_when: no
+  register: topics_list_result
+
+- name: create topics
+  command: "./bin/kafka-topics.sh --zookeeper {{ kafka_zookeeper_connect[0] }} --create --topic {{ item.topic }} --partitions {{ item.partitions }} --replication-factor {{ item.replication_factor }}"
+  args:
+    chdir: "{{ kafka_install_dir }}"
+  run_once: yes
+  with_items: "{{ kafka_topics }}"
+  when: item.topic not in topics_list_result.stdout_lines

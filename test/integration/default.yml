@@ -1,0 +1,10 @@
+---
+- hosts: all
+  become: yes
+  roles:
+    - role: contentwise.java
+    - role: contentwise.zookeeper
+    - role: contentwise.kafka
+      kafka_topics:
+        - { topic: "test1", partitions: 100, replication_factor: 1 }
+        - { topic: "test2", partitions: 100, replication_factor: 1 }
