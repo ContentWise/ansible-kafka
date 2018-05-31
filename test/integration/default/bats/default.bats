@@ -5,7 +5,7 @@
   [ "$status" -eq 0 ]
 }
 
-@test "Validate service is healthy" {
-  run curl -s -o /dev/null -w "%{http_code}" localhost:9092
-  [[ $output = "200" ]]
+@test "Validate service is up" {
+  run nc -zv localhost 9092
+  [ "$status" -eq 0 ]
 }
