@@ -11,6 +11,7 @@
     owner: "{{ kafka_user }}"
     group: "{{ kafka_group }}"
     creates: "{{ kafka_install_dir }}/bin/kafka-server-start.sh"
+  notify: restart kafka
 
 - name: makesure kafka directories exist
   file:
@@ -28,17 +29,21 @@
     dest: "{{ kafka_conf_dir }}/server.properties"
     owner: "{{ kafka_user }}"
     group: "{{ kafka_group }}"
+  notify: restart kafka
 
 - name: systemd start script
   template:
     src: kafka.service.j2
     dest: /etc/systemd/system/kafka.service
+  notify: restart kafka
 
 - name: make sure kafka is started
   service:
     name: kafka
     state: started
     enabled: yes
+
+- meta: flush_handlers
 
 - name: wait for kafka to startup
   wait_for:
